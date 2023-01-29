@@ -16,7 +16,7 @@
 	<string>AppGPT Ai</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
-	<key>NSPhotoLibraryUsagaDescription</key>
+	<key>NSPhotoLibraryUsageDescription</key>
 	<string>AppGPT Ai requires Access to Photo Library in order to store Ai generated Photos to users Storage</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(FLUTTER_BUILD_NAME)</string>
