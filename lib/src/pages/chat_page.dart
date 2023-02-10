@@ -1,8 +1,12 @@
+import 'dart:developer';
+
 import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:chatgpt/models/model.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../Subscritionpage.dart';
 import '../../models/chat.dart';
 import '../../network/api_services.dart';
 
@@ -47,6 +51,7 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   TextEditingController mesageController = TextEditingController();
+  bool isLoading = false;
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -58,6 +63,39 @@ class _ChatPageState extends State<ChatPage> {
               children: [
                 _topChat(),
                 _bodyChat(),
+                Visibility(
+                  visible: isLoading,
+                  child: Container(
+                    color: Colors.white,
+                    child: Row(
+                      children: [
+                        Container(
+                          margin: const EdgeInsets.only(
+                            left: 10,
+                            right: 10,
+                            top: 10,
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 10,
+                            horizontal: 10,
+                          ),
+                          decoration: const BoxDecoration(
+                            color: Color.fromARGB(111, 158, 158, 158),
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(10),
+                              topRight: Radius.circular(10),
+                              bottomRight: Radius.circular(10),
+                            ),
+                          ),
+                          child: const SpinKitThreeBounce(
+                            color: Color.fromARGB(255, 66, 103, 178),
+                            size: 20,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
                 const SizedBox(
                   height: 75,
                 )
@@ -263,11 +301,15 @@ class _ChatPageState extends State<ChatPage> {
               topLeft: Radius.circular(45), topRight: Radius.circular(45)),
           color: Colors.white,
         ),
-        child: ListView(
+        child: ListView.builder(
           physics: const BouncingScrollPhysics(),
-          children: [
-            chats(),
-          ],
+          shrinkWrap: true,
+          scrollDirection: Axis.vertical,
+          itemCount: chatList.length,
+          itemBuilder: (context, index) => _itemChat(
+            chat: chatList[index].chat,
+            message: chatList[index].msg,
+          ),
         ),
       ),
     );
@@ -293,7 +335,7 @@ class _ChatPageState extends State<ChatPage> {
             decoration: BoxDecoration(
               color: chat == 0
                   ? const Color.fromARGB(255, 0, 106, 255)
-                  : const Color.fromARGB(255, 46, 118, 219),
+                  : const Color.fromARGB(111, 158, 158, 158),
               borderRadius: chat == 0
                   ? const BorderRadius.only(
                       topLeft: Radius.circular(10),
@@ -306,14 +348,14 @@ class _ChatPageState extends State<ChatPage> {
                       bottomRight: Radius.circular(10),
                     ),
             ),
-            child: chatWidget(message),
+            child: chatWidget(message, chat),
           ),
         ),
       ],
     );
   }
 
-  Widget chatWidget(String text) {
+  Widget chatWidget(String text, int chat) {
     return SizedBox(
       width: 250.0,
       child: DefaultTextStyle(
@@ -325,6 +367,9 @@ class _ChatPageState extends State<ChatPage> {
           animatedTexts: [
             TyperAnimatedText(
               text.replaceFirst('\n\n', ''),
+              textStyle: TextStyle(
+                color: chat == 0 ? Colors.white : Colors.black,
+              ),
             ),
           ],
           repeatForever: false,
@@ -347,17 +392,61 @@ class _ChatPageState extends State<ChatPage> {
               hintText: 'Type your message...',
               suffixIcon: InkWell(
                 onTap: (() async {
-                  messagePrompt = mesageController.text.toString();
-                  setState(() {
-                    chatList.add(Chat(msg: messagePrompt, chat: 0));
-                    mesageController.clear();
-                  });
-                  chatList.addAll(await submitGetChatsForm(
-                    context: context,
-                    prompt: messagePrompt,
-                    tokenValue: tokenValue,
-                  ));
-                  setState(() {});
+                  isLoading = true;
+                  final prefs = await SharedPreferences.getInstance();
+                  int searchCount =
+                      prefs.getInt(DateTime.now().toString().split(" ")[0]) ??
+                          0;
+                  bool isPaid = prefs.getBool("isPaid") ?? false;
+                  log("isPaid: $isPaid");
+                  if (isPaid) {
+                    messagePrompt = mesageController.text.toString();
+                    setState(() {
+                      chatList.add(Chat(msg: messagePrompt, chat: 0));
+                      mesageController.clear();
+                    });
+                    submitGetChatsForm(
+                      context: context,
+                      prompt: messagePrompt,
+                      tokenValue: tokenValue,
+                    ).then((value) {
+                      log("here");
+                      isLoading = false;
+                      chatList.addAll(value);
+                      setState(() {});
+                    });
+
+                    setState(() {});
+                  } else {
+                    if (searchCount <= 15) {
+                      await prefs.setInt(
+                          DateTime.now().toString().split(" ")[0],
+                          searchCount + 1);
+
+                      messagePrompt = mesageController.text.toString();
+                      setState(() {
+                        chatList.add(Chat(msg: messagePrompt, chat: 0));
+                        mesageController.clear();
+                      });
+                      submitGetChatsForm(
+                        context: context,
+                        prompt: messagePrompt,
+                        tokenValue: tokenValue,
+                      ).then((value) {
+                        log("here");
+                        isLoading = false;
+                        chatList.addAll(value);
+                        setState(() {});
+                      });
+                      setState(() {});
+                    } else {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (ctx) => const Subscritionpage(),
+                        ),
+                      );
+                    }
+                  }
                 }),
                 child: Container(
                   decoration: BoxDecoration(

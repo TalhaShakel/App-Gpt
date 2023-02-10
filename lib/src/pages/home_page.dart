@@ -1,10 +1,14 @@
 import 'dart:developer';
 
+import 'package:chatgpt/Subscritionpage.dart';
 import 'package:chatgpt/network/admob_service_helper.dart';
+import 'package:chatgpt/purchase_api.dart';
 import 'package:chatgpt/src/pages/chat_page.dart';
 import 'package:chatgpt/src/pages/dalle_page.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class HomePage extends StatefulWidget {
@@ -76,8 +80,26 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    myBanner.load();
-    _createInterstitialAd();
+    loadAds();
+  }
+
+  bool bannerLoaded = false;
+
+  loadAds() async {
+    final prefs = await SharedPreferences.getInstance();
+    final customer = await Purchases.getCustomerInfo();
+    final entitlements = customer.entitlements.active.values.toList();
+    log("$entitlements");
+    PurchaseApi.isPaid = entitlements.isEmpty ? false : true;
+
+    await prefs.setBool("isPaid", PurchaseApi.isPaid);
+
+    if (!PurchaseApi.isPaid) {
+      myBanner.load();
+      _createInterstitialAd();
+      bannerLoaded = true;
+    }
+    setState(() {});
   }
 
   @override
@@ -97,7 +119,7 @@ class _HomePageState extends State<HomePage> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           buttonWidget('Search Image', () {
-            _showInterstitialAd();
+            if (!PurchaseApi.isPaid) _showInterstitialAd();
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -108,7 +130,7 @@ class _HomePageState extends State<HomePage> {
           buttonWidget(
             'Chat Bot',
             () {
-              _showInterstitialAd();
+              if (!PurchaseApi.isPaid) _showInterstitialAd();
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -140,13 +162,24 @@ class _HomePageState extends State<HomePage> {
               ),
             ],
           ),
+          if (!PurchaseApi.isPaid)
+            buttonWidget('Upgrade to Premium', () {
+              log(DateTime.now().toString().split(" ")[0]);
+              if (!PurchaseApi.isPaid) _showInterstitialAd();
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const Subscritionpage(),
+                ),
+              );
+            }),
         ],
       ),
       bottomNavigationBar: Container(
         alignment: Alignment.center,
         width: myBanner.size.width.toDouble(),
         height: myBanner.size.height.toDouble(),
-        child: AdWidget(ad: myBanner),
+        child: bannerLoaded ? AdWidget(ad: myBanner) : Container(),
       ),
     );
   }
