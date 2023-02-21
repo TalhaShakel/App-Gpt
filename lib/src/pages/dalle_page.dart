@@ -1,6 +1,10 @@
+import 'dart:developer';
+
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:chatgpt/Subscritionpage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart';
 
 import '../../models/images.dart';
@@ -22,10 +26,20 @@ class _DallePageState extends State<DallePage> {
   bool searching = false;
   final double _value = 10;
   List<Images> imagesList = [];
+  late SharedPreferences prefs;
+  bool isPaid = false;
+  int searchCount = 0;
+
   @override
   void initState() {
     super.initState();
+    initPrefs();
     imagesAvailable = imagesList.isNotEmpty ? true : false;
+  }
+
+  void initPrefs() async {
+    prefs = await SharedPreferences.getInstance();
+    isPaid = prefs.getBool("isPaid") ?? false;
   }
 
   @override
@@ -44,7 +58,7 @@ class _DallePageState extends State<DallePage> {
           ),
         ),
         title: const Text(
-          'Chat GPT',
+          'App GPT',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -66,7 +80,7 @@ class _DallePageState extends State<DallePage> {
                     ? MasonryGridView.count(
                         crossAxisCount: 3,
                         mainAxisSpacing: 10,
-                        itemCount: imagesList.length,
+                        itemCount: imagesList.length > 4 && isPaid ? 4 : 2,
                         crossAxisSpacing: 10,
                         semanticChildCount: 6,
                         itemBuilder: (context, index) {
@@ -127,21 +141,70 @@ class _DallePageState extends State<DallePage> {
         controller: searchController,
         style: const TextStyle(color: Colors.black),
         decoration: InputDecoration(
-          hintText: 'Type your message...',
+          hintText: 'Enter Your Query...',
           hintStyle: const TextStyle(color: Colors.grey),
           suffixIcon: InkWell(
             onTap: () async {
-              setState(() {
-                searching = true;
-              });
-              imagesList = await submitGetImagesForm(
-                context: context,
-                prompt: searchController.text.toString(),
-                n: _value.round(),
-              );
-              setState(() {
-                imagesAvailable = imagesList.isNotEmpty ? true : false;
-              });
+              if (searchController.text == '') return;
+              int searchCount = prefs.getInt(
+                      "${DateTime.now().toString().split(" ")[0]}-image") ??
+                  0;
+              log("$searchCount");
+              if (isPaid && searchCount < 4) {
+                await prefs.setInt(
+                    "${DateTime.now().toString().split(" ")[0]}-image",
+                    searchCount + 1);
+                setState(() {
+                  searching = true;
+                });
+                imagesList = await submitGetImagesForm(
+                  context: context,
+                  prompt: searchController.text.toString(),
+                  n: _value.round(),
+                );
+                setState(() {
+                  imagesAvailable = imagesList.isNotEmpty ? true : false;
+                });
+              } else if (isPaid && searchCount >= 4) {
+                showDialog(
+                    context: context,
+                    builder: (ctx) {
+                      return AlertDialog(
+                        title: const Text("Limit Reached"),
+                        content:
+                            const Text("You have Reached Daily search limit"),
+                        actions: [
+                          ElevatedButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            child: const Text("Ok"),
+                          ),
+                        ],
+                      );
+                    });
+              } else {
+                if (!isPaid && searchCount < 2) {
+                  await prefs.setInt(
+                      "${DateTime.now().toString().split(" ")[0]}-image",
+                      searchCount + 1);
+                  setState(() {
+                    searching = true;
+                  });
+                  imagesList = await submitGetImagesForm(
+                    context: context,
+                    prompt: searchController.text.toString(),
+                    n: _value.round(),
+                  );
+                  setState(() {
+                    imagesAvailable = imagesList.isNotEmpty ? true : false;
+                  });
+                } else {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (ctx) => const Subscritionpage(),
+                    ),
+                  );
+                }
+              }
             },
             child: Container(
               decoration: BoxDecoration(

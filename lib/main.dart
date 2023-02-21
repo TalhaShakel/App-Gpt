@@ -16,7 +16,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const MaterialApp(
-      title: 'AppGPT Ai',
+      title: 'Chatify Ai',
       debugShowCheckedModeBanner: false,
       home: SplashPage(),
     );

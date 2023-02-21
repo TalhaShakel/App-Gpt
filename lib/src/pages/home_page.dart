@@ -108,7 +108,7 @@ class _HomePageState extends State<HomePage> {
       //backgroundColor: const Color.fromARGB(255, 66, 103, 178),
       appBar: AppBar(
         title: const Text(
-          'AppGPT Ai',
+          'Chatify Ai',
           style: TextStyle(color: Colors.white),
         ),
         backgroundColor: const Color.fromARGB(255, 66, 103, 178),
