@@ -7,7 +7,6 @@ import '../errors/exceptions.dart';
 import '../models/chat.dart';
 import '../models/images.dart';
 import '../models/model.dart';
-
 import '../utils/constants.dart';
 import 'error_message.dart';
 import 'network_client.dart';
@@ -23,7 +22,7 @@ Future<List<Images>> submitGetImagesForm({
   try {
     final res = await networkClient.post(
       '${BASE_URL}images/generations',
-      {"prompt": prompt, "n": n, "size": "256x256"},
+      {"prompt": prompt, "n": n, "size": "1024x1024"},
       token: OPEN_API_KEY,
     );
     Map<String, dynamic> mp = jsonDecode(res.toString());

@@ -1,6 +1,7 @@
 import 'package:chatgpt/src/pages/home_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:onesignal_flutter/onesignal_flutter.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({Key? key}) : super(key: key);
@@ -13,6 +14,7 @@ class _SplashPageState extends State<SplashPage> {
   @override
   void initState() {
     super.initState();
+    initOneSignal();
     Future.delayed(const Duration(milliseconds: 1600), () {
       setState(() {
         // Here we are going to the City List Screen
@@ -26,6 +28,14 @@ class _SplashPageState extends State<SplashPage> {
         );
       });
     });
+  }
+
+  initOneSignal() async {
+    await OneSignal.shared.setAppId("4161de09-d066-4851-8cf7-8ce5de650ab7");
+
+    OneSignal.shared
+        .setNotificationOpenedHandler((OSNotificationOpenedResult result) {});
+    print('id Attached');
   }
 
   @override

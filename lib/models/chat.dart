@@ -10,4 +10,11 @@ class Chat {
         chat: json['chat'],
         msg: json['msg'],
       );
+
+  Map<String, dynamic> toJson() {
+    return {
+      'msg': msg,
+      'chat': chat,
+    };
+  }
 }

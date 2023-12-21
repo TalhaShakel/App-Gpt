@@ -1,15 +1,13 @@
-import 'dart:developer';
-
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:chatgpt/Subscritionpage.dart';
+import 'package:chatgpt/utils/constants.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+import 'package:image_downloader/image_downloader.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart';
 
 import '../../models/images.dart';
 import '../../network/api_services.dart';
-import 'full_screen.dart';
 
 class DallePage extends StatefulWidget {
   const DallePage({
@@ -24,11 +22,11 @@ class _DallePageState extends State<DallePage> {
   TextEditingController searchController = TextEditingController();
   bool imagesAvailable = false;
   bool searching = false;
-  final double _value = 10;
+  final double _value = 1;
   List<Images> imagesList = [];
   late SharedPreferences prefs;
-  bool isPaid = false;
-  int searchCount = 0;
+  //bool isPaid = false;
+  //int searchCount = 0;
 
   @override
   void initState() {
@@ -39,7 +37,7 @@ class _DallePageState extends State<DallePage> {
 
   void initPrefs() async {
     prefs = await SharedPreferences.getInstance();
-    isPaid = prefs.getBool("isPaid") ?? false;
+    //isPaid = prefs.getBool("isPaid") ?? false;
   }
 
   @override
@@ -58,13 +56,25 @@ class _DallePageState extends State<DallePage> {
           ),
         ),
         title: const Text(
-          'App GPT',
+          'AppGPT',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
             color: Colors.black,
           ),
         ),
+        actions: [
+          Center(
+              child: Text(
+            "Coins: $coins",
+            style: const TextStyle(
+              fontSize: 20,
+            ),
+          )),
+          const SizedBox(
+            width: 5,
+          ),
+        ],
       ),
       body: SafeArea(
         child: Container(
@@ -77,37 +87,7 @@ class _DallePageState extends State<DallePage> {
               _formChat(),
               Expanded(
                 child: imagesAvailable
-                    ? MasonryGridView.count(
-                        crossAxisCount: 3,
-                        mainAxisSpacing: 10,
-                        itemCount: imagesList.length > 4 && isPaid ? 4 : 2,
-                        crossAxisSpacing: 10,
-                        semanticChildCount: 6,
-                        itemBuilder: (context, index) {
-                          return InkWell(
-                            onTap: () {
-                              Navigator.of(context).push(
-                                CustomPageRoute(
-                                  builder: (context) =>
-                                      ImageView(imgPath: imagesList[index].url),
-                                ),
-                              );
-                            },
-                            child: Hero(
-                              tag: imagesList[index].url,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(6)),
-                                height: index % 2 == 0 ? 180 : 250,
-                                width: MediaQuery.of(context).size.width / 3,
-                                child: ImageCard(
-                                  imageData: imagesList[index].url,
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      )
+                    ? imageView(imagesList[0].url)
                     : Center(
                         child: searchingWidget(),
                       ),
@@ -145,27 +125,30 @@ class _DallePageState extends State<DallePage> {
           hintStyle: const TextStyle(color: Colors.grey),
           suffixIcon: InkWell(
             onTap: () async {
+              FocusManager.instance.primaryFocus?.unfocus();
               if (searchController.text == '') return;
-              int searchCount = prefs.getInt(
-                      "${DateTime.now().toString().split(" ")[0]}-image") ??
-                  0;
-              log("$searchCount");
-              if (isPaid && searchCount < 4) {
-                await prefs.setInt(
-                    "${DateTime.now().toString().split(" ")[0]}-image",
-                    searchCount + 1);
+              // int searchCount = prefs.getInt(
+              //         "${DateTime.now().toString().split(" ")[0]}-image") ??
+              //     0;
+              // log("$searchCount");
+              if (coins - 2 >= 0) {
+                // await prefs.setInt(
+                //     "${DateTime.now().toString().split(" ")[0]}-image",
+                //     searchCount + 1);
                 setState(() {
                   searching = true;
                 });
                 imagesList = await submitGetImagesForm(
                   context: context,
                   prompt: searchController.text.toString(),
-                  n: _value.round(),
+                  n: 1,
                 );
+                coins = coins - 2;
+                await prefs.setInt("coins", coins);
                 setState(() {
                   imagesAvailable = imagesList.isNotEmpty ? true : false;
                 });
-              } else if (isPaid && searchCount >= 4) {
+              } else {
                 showDialog(
                     context: context,
                     builder: (ctx) {
@@ -175,35 +158,19 @@ class _DallePageState extends State<DallePage> {
                             const Text("You have Reached Daily search limit"),
                         actions: [
                           ElevatedButton(
-                            onPressed: () => Navigator.of(context).pop(),
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (ctx) => const Subscritionpage(),
+                                ),
+                              );
+                            },
                             child: const Text("Ok"),
                           ),
                         ],
                       );
                     });
-              } else {
-                if (!isPaid && searchCount < 2) {
-                  await prefs.setInt(
-                      "${DateTime.now().toString().split(" ")[0]}-image",
-                      searchCount + 1);
-                  setState(() {
-                    searching = true;
-                  });
-                  imagesList = await submitGetImagesForm(
-                    context: context,
-                    prompt: searchController.text.toString(),
-                    n: _value.round(),
-                  );
-                  setState(() {
-                    imagesAvailable = imagesList.isNotEmpty ? true : false;
-                  });
-                } else {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (ctx) => const Subscritionpage(),
-                    ),
-                  );
-                }
               }
             },
             child: Container(
@@ -238,6 +205,80 @@ class _DallePageState extends State<DallePage> {
           ),
         ),
       ),
+    );
+  }
+
+  imageView(String path) {
+    List<String> images = prefs.getStringList("images") ?? [];
+    if (!images.contains(path)) {
+      images.add(path);
+      prefs.setStringList("images", images);
+    }
+    return Stack(
+      children: <Widget>[
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          clipBehavior: Clip.hardEdge,
+          height: MediaQuery.of(context).size.height,
+          width: MediaQuery.of(context).size.width,
+          child: CachedNetworkImage(
+              imageUrl: path,
+              placeholder: (context, url) => Container(
+                    color: const Color(0xfff5f8fd),
+                  ),
+              fit: BoxFit.cover),
+        ),
+        Container(
+          height: MediaQuery.of(context).size.height,
+          width: MediaQuery.of(context).size.width,
+          alignment: Alignment.bottomCenter,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              InkWell(
+                  onTap: () async {
+                    await ImageDownloader.downloadImage(path);
+                  },
+                  child: Stack(
+                    children: <Widget>[
+                      Container(
+                        width: MediaQuery.of(context).size.width / 2,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: const Color(0xff1C1B1B).withOpacity(0.8),
+                          borderRadius: BorderRadius.circular(40),
+                        ),
+                      ),
+                      Container(
+                        width: MediaQuery.of(context).size.width / 2,
+                        height: 50,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                            border: Border.all(color: Colors.white24, width: 1),
+                            borderRadius: BorderRadius.circular(40),
+                            gradient: const LinearGradient(
+                                colors: [Color(0x36FFFFFF), Color(0x0FFFFFFF)],
+                                begin: FractionalOffset.topLeft,
+                                end: FractionalOffset.bottomRight)),
+                        child: const Text(
+                          "Download",
+                          style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                    ],
+                  )),
+              const SizedBox(
+                height: 5,
+              )
+            ],
+          ),
+        )
+      ],
     );
   }
 }

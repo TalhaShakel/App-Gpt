@@ -3,11 +3,13 @@ import 'dart:developer';
 import 'package:chatgpt/Subscritionpage.dart';
 import 'package:chatgpt/network/admob_service_helper.dart';
 import 'package:chatgpt/purchase_api.dart';
+import 'package:chatgpt/src/pages/chat_history.dart';
 import 'package:chatgpt/src/pages/chat_page.dart';
 import 'package:chatgpt/src/pages/dalle_page.dart';
+import 'package:chatgpt/src/pages/images_history.dart';
+import 'package:chatgpt/utils/constants.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -87,18 +89,27 @@ class _HomePageState extends State<HomePage> {
 
   loadAds() async {
     final prefs = await SharedPreferences.getInstance();
-    final customer = await Purchases.getCustomerInfo();
-    final entitlements = customer.entitlements.active.values.toList();
-    log("$entitlements");
-    PurchaseApi.isPaid = entitlements.isEmpty ? false : true;
-
-    await prefs.setBool("isPaid", PurchaseApi.isPaid);
-
-    if (!PurchaseApi.isPaid) {
-      myBanner.load();
-      _createInterstitialAd();
-      bannerLoaded = true;
+    bool isDone =
+        prefs.getBool(DateTime.now().toString().split(" ")[0]) ?? false;
+    if (!isDone) {
+      var tempCoins = prefs.getInt("coins");
+      if (coins < 8) {
+        prefs.setInt("coins", 8);
+      }
+      prefs.setBool(DateTime.now().toString().split(" ")[0], true);
     }
+    coins = prefs.getInt("coins") ?? 0;
+    // final customer = await Purchases.getCustomerInfo();
+    // final entitlements = customer.entitlements.active.values.toList();
+    // log("$entitlements");
+    // PurchaseApi.isPaid = entitlements.isEmpty ? false : true;
+
+    // await prefs.setBool("isPaid", PurchaseApi.isPaid);
+
+    myBanner.load();
+    //_createInterstitialAd();
+    bannerLoaded = true;
+
     setState(() {});
   }
 
@@ -108,72 +119,111 @@ class _HomePageState extends State<HomePage> {
       //backgroundColor: const Color.fromARGB(255, 66, 103, 178),
       appBar: AppBar(
         title: const Text(
-          'Chatify Ai',
+          'AppGPT',
           style: TextStyle(color: Colors.white),
         ),
         backgroundColor: const Color.fromARGB(255, 66, 103, 178),
         elevation: 1,
         centerTitle: true,
-      ),
-      body: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          buttonWidget('Search Image', () {
-            if (!PurchaseApi.isPaid) _showInterstitialAd();
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const DallePage(),
+        actions: [
+          Center(
+            child: Text(
+              "Coins: $coins",
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
               ),
-            );
-          }),
-          buttonWidget(
-            'Chat Bot',
-            () {
-              if (!PurchaseApi.isPaid) _showInterstitialAd();
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const ChatPage(),
-                ),
-              );
-            },
+            ),
           ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Expanded(
-                child: buttonWidget("Privacy Policy", () {
-                  _launchUrl(
-                    Uri.parse(
-                      'https://sites.google.com/view/chat-gpt-ai-privacy-policy/privacy-policy',
-                    ),
-                  );
-                }),
-              ),
-              Expanded(
-                child: buttonWidget("About Us", () {
-                  _launchUrl(
-                    Uri.parse(
-                      'https://sites.google.com/view/chat-gpt-ai-privacy-policy/about-us',
-                    ),
-                  );
-                }),
-              ),
-            ],
+          const SizedBox(
+            width: 5,
           ),
-          if (!PurchaseApi.isPaid)
-            buttonWidget('Upgrade to Premium', () {
-              log(DateTime.now().toString().split(" ")[0]);
-              if (!PurchaseApi.isPaid) _showInterstitialAd();
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const Subscritionpage(),
-                ),
-              );
-            }),
         ],
+      ),
+      body: SingleChildScrollView(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            buttonWidget('Image Generation', () {
+              if (!PurchaseApi.isPaid) _showInterstitialAd();
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const DallePage(),
+                ),
+              ).then((value) => setState(() {}));
+            }),
+            buttonWidget(
+              'Chat Bot',
+              () {
+                if (!PurchaseApi.isPaid) _showInterstitialAd();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ChatPage(),
+                  ),
+                ).then((value) => setState(() {}));
+              },
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: buttonWidget("Old Chats", () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (ctx) => const ChatHistory(),
+                      ),
+                    );
+                  }),
+                ),
+                Expanded(
+                  child: buttonWidget("Old Images", () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (ctx) => const ImagesHistory(),
+                      ),
+                    );
+                  }),
+                ),
+              ],
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: buttonWidget("Privacy Policy", () {
+                    _launchUrl(
+                      Uri.parse(
+                        'https://sites.google.com/view/chat-gpt-ai-privacy-policy/privacy-policy',
+                      ),
+                    );
+                  }),
+                ),
+                Expanded(
+                  child: buttonWidget("About Us", () {
+                    _launchUrl(
+                      Uri.parse(
+                        'https://sites.google.com/view/chat-gpt-ai-privacy-policy/about-us',
+                      ),
+                    );
+                  }),
+                ),
+              ],
+            ),
+            if (!PurchaseApi.isPaid)
+              buttonWidget('Buy Coins', () {
+                log(DateTime.now().toString().split(" ")[0]);
+                if (!PurchaseApi.isPaid) _showInterstitialAd();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const Subscritionpage(),
+                  ),
+                );
+              }),
+          ],
+        ),
       ),
       bottomNavigationBar: Container(
         alignment: Alignment.center,
